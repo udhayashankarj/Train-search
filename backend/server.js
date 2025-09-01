@@ -9,7 +9,11 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json({ limit: "10mb" })); // allows you to parse the body of the request
 
+app.get("/", (req, res) => {
+  res.status(500).json({ message: "hello" });
+});
+
 app.listen(PORT, () => {
   console.log("Server is running on http://localhost:" + PORT);
-  connectDB();
+  // connectDB();
 });
