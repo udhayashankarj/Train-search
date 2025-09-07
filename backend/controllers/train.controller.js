@@ -145,3 +145,65 @@ export const addTrains = async (req,res) => {
   }
   res.json({message:"✅ Completed adding all trains."});
 };
+
+
+export const searchTrains = async (req, res) => {
+  const { sourcePoint, destinationPoint, change } = req.body;
+  const sourceTrains = await Train.find({"stops.name":sourcePoint});
+  const destinationTrains = await Train.find({"stops.name":destinationPoint});
+  // console.log("source");
+  // console.log(sourceTrains);
+  var visitedTrains = new Set();
+  var visitedStops = new Set();
+  visitedStops.add(sourcePoint);
+  const allPaths = [];
+  // console.log("destination");
+  // console.log(destinationTrains);
+  const dfs =async (trains,sourcePoint,destinationPoint,path,visitedStops,visitedTrains,depth) => {
+    if(sourcePoint==destinationPoint){
+      // console.log(path);
+      allPaths.push([...path]);
+      return;
+    }
+    for(const train of trains){
+      if(!visitedTrains.has(train.name)){
+        visitedTrains.add(train.name);
+        const sourceIdx = train.stops.findIndex(s=>s.name == sourcePoint);
+        // console.log(sourceIdx);
+        if(depth>change)
+          return;
+        for(var i=sourceIdx+1;i<train.stops.length;i++){
+          if (!visitedStops.has(train.stops[i].name)){
+            visitedStops.add(train.stops[i].name);
+            var connectingTrain = {
+              name: train.name,
+              sourcePoint: train.stops[sourceIdx],
+              destinationPoint: train.stops[i],
+            };
+            path.push(connectingTrain);
+            const newTrains = await Train.find({
+              stops: {
+                $elemMatch: {
+                  name: train.stops[i].name,
+                  depatureTime: { $gt: train.stops[i].depatureTime },
+                },
+              },
+            });
+            await dfs(newTrains,train.stops[i].name,destinationPoint,path,visitedStops,visitedTrains,depth+1);
+            path.pop();
+            visitedStops.delete(train.stops[i].name);
+          }
+          // console.log(sourceIdx,i,newTrains);
+        }
+        visitedTrains.delete(train.name);
+      }
+    }
+  }
+  await dfs(sourceTrains,sourcePoint,destinationPoint,[],visitedStops,visitedTrains,0);
+  if(allPaths.length>0)
+    res.json({ allPaths });
+  else
+    res.json({allPaths,message:"No paths found"})
+  // console.log("✅ Completed adding all trains.");
+};
+
